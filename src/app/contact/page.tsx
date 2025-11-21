@@ -60,14 +60,14 @@ export default function ContactPage() {
                                     <Mail className="w-6 h-6 text-gold mt-1" />
                                     <div>
                                         <p className="font-medium text-white">Email</p>
-                                        <p className="text-gray-400">hello@roopsnap.com</p>
+                                        <p className="text-gray-400">Collab.roopsnap@gmail.com</p>
                                     </div>
                                 </div>
                                 <div className="flex items-start space-x-4">
                                     <Phone className="w-6 h-6 text-gold mt-1" />
                                     <div>
                                         <p className="font-medium text-white">Phone</p>
-                                        <p className="text-gray-400">+1 (555) 123-4567</p>
+                                        <p className="text-gray-400">+1 (332) 201-7020</p>
                                     </div>
                                 </div>
                                 <div className="flex items-start space-x-4">
