@@ -1,69 +1,39 @@
-import { NextResponse } from "next/server"
-import { supabase } from "@/lib/supabase"
-import { getPhotos, savePhotos } from "@/lib/storage"
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
-export async function GET() {
-    // Try Supabase first
-    if (supabase) {
-        const { data, error } = await supabase.from('photos').select('*').order('created_at', { ascending: false })
-        if (!error && data) return NextResponse.json(data)
+export async function POST(req: Request) {
+  try {
+    const formData = await req.formData();
+    const file = formData.get("file") as File;
+
+    if (!file) {
+      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    // Fallback to local JSON DB
-    const photos = getPhotos()
-    // Sort by created_at desc
-    photos.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    return NextResponse.json(photos)
-}
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!   // IMPORTANT
+    );
 
-export async function POST(request: Request) {
-    try {
-        const body = await request.json()
+    const fileName = `uploads/${Date.now()}-${file.name}`;
 
-        // Try Supabase
-        if (supabase) {
-            const { data, error } = await supabase.from('photos').insert([body]).select()
-            if (!error && data) return NextResponse.json(data)
-        }
+    const { data, error } = await supabase.storage
+      .from("photos")  // make sure this matches your bucket name
+      .upload(fileName, file, {
+        upsert: true,
+      });
 
-        // Fallback to local JSON DB
-        const photos = getPhotos()
-        const newPhoto = {
-            id: Date.now(),
-            ...body,
-            created_at: new Date().toISOString()
-        }
-        photos.unshift(newPhoto)
-        savePhotos(photos)
-
-        return NextResponse.json({ success: true, data: newPhoto })
-    } catch (error) {
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+    if (error) {
+      console.error("Supabase upload error:", error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
-}
 
-export async function DELETE(request: Request) {
-    try {
-        const { id } = await request.json()
-
-        // Try Supabase
-        if (supabase) {
-            const { error } = await supabase.from('photos').delete().eq('id', id)
-            if (!error) return NextResponse.json({ success: true })
-        }
-
-        // Fallback to local JSON DB
-        const photos = getPhotos()
-        // Use loose equality just in case, though JSON preserves types better than in-memory sometimes
-        const newPhotos = photos.filter((p: any) => p.id != id)
-
-        if (newPhotos.length !== photos.length) {
-            savePhotos(newPhotos)
-            return NextResponse.json({ success: true })
-        } else {
-            return NextResponse.json({ success: false, error: "Item not found" })
-        }
-    } catch (error) {
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
-    }
+    return NextResponse.json({
+      success: true,
+      path: data.path,
+    });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
 }
